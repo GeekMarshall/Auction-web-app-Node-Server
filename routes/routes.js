@@ -1,7 +1,7 @@
 const router = require('express').Router();
 const User = require('../models/user');
 const Asset = require('../models/asset');
-
+const Bid = require('../models/bid');
 
 // USER RELATED REQUESTS
 
@@ -14,11 +14,11 @@ router.get('/get-users', async (req,res)=>{
 //LOGIN
 router.post('/login', async (req, res)=>{
 
-
     var username = req.body.username;
     var password = req.body.password;
 
-    
+    let state = false;
+
     if(username.length != 0 && password.length != 0){
         // BOTH USERNAME AND PASSWORD ARE PRESENT
         const users = await User.find();
@@ -26,45 +26,32 @@ router.post('/login', async (req, res)=>{
         users.forEach((user)=>{
             // IF USERNAME IS CORRECT
             if(username === user.username){
-                // VAR TO STORE A USER(FROM DATABASE) WHO IS TRYING TO LOG IN
+                // STORE USER(FROM DATABASE) WHO IS TRYING TO LOG IN
                 currentUser = user;
-                // IF USERNAME IS CORRECT
+                // IF PASSWORD IS CORRECT
                 if(password === currentUser.password){
-                    res.status(203).json({message: `${username} logged in`});
-                }else{
-                    res.status(412).json({message: 'wrong password'});
+                    state = true;
                 }
-            }else{
-                res.status(413).json({message: 'username doesnt exist'});
-                state = 0;
             }
         });
+    }
 
+    // IF BOTH USERNAME AND PASSWORD ENTERED WERE CORRECT STATE ---> true
+    if(state){
+        res.status(203).json({message: `${username} logged in`});
     }else{
-        if(username.length === 0 && password.length === 0){
-            // BOTH USERNAME AND PASSWORD ARE ABSENT
-            res.status(410).json({message: 'invalid credentials'});
-        }
-        else{
-            if(username.length === 0){
-                // USERNAME IS ABSENT
-                res.status(409).json({message: 'invalid username'});
-            }else{
-                // PASSWORD IS ABSENT
-                res.status(408).json({message: 'invalid password'});
-            }
-        }
+        res.status(410).json({message: 'invalid credentials'});
     }
 });
 
 // REGISTRATION
 router.post('/reg/user', async (req, res)=>{
-    const username = req.body.username;
 
+    const username = req.body.username;
     const users = await User.find();
     let state = 0;
 
-
+    // CHECK TO SEE IF THE USER ALREADY EXISTS
     for(var ind in users){
         if(username === users[ind].username){
             res.status(414).json({message: 'this username already exists'});
@@ -73,6 +60,7 @@ router.post('/reg/user', async (req, res)=>{
         }
     }
 
+    // IF USER DOES NOT EXIST STATE ---> 0
     if(state === 0){
         const user = new User({
             username: req.body.username,
@@ -95,28 +83,74 @@ router.get('/get-assets', async (req, res)=>{
     const assetData = await Asset.find();
     res.json(assetData);
     console.log(assetData);
-
-
 });
 
-router.post('/reg/asset', async (req,res)=>{
-    const asset = new Asset({
-        name: req.body.name,
-        price: req.body.price,
-        minimumBid: req.body.minimumBid,
-        openingDate: req.body.openingDate,
-        closingDate: req.body.closingDate
-    });
 
-    try{
-        const newAsset = await asset.save();
-        res.status(201).json({message: 'new asset added', asset: newAsset});
-    }catch(error){
-        res.status(400).json({message: 'bad request'});
+// WRITE FILTER FOR DISTINCT ASSET NAMES GETTING REGISTERED
+router.post('/reg/asset', async (req,res)=>{
+
+    const assetName = req.body.name;
+    const assets = await Asset.find();
+    let state = 0;
+
+    for(var index in assets){
+        if(assetName === assets[index].name){
+            res.status(420).json({message: 'asset already exists'});
+            state = 1;
+            break;
+        }
+    }
+    if(state === 0){
+        const asset = new Asset({
+            name: req.body.name,
+            price: req.body.price,
+            minimumBid: req.body.minimumBid, 
+            openingDate: req.body.openingDate,
+            closingDate: req.body.closingDate
+        });
+
+        const bid = new Bid({
+            assetName: req.body.name,
+            bidders: [],
+        })
+    
+        try{
+            const newBid = await bid.save();
+            const newAsset = await asset.save();
+            res.status(201).json({message: 'new asset added and bid initialized', asset: newAsset, bid: newBid});
+        }catch(error){
+            res.status(400).json({message: 'bad request'});
+        }
     }
 });
 
+// BIDDING ROUTES 
+
+router.get('/get-bids', async (req, res)=>{
+    const bids = await Bid.find();
+    res.json(bids);
+    console.log(bids);
+});
+
+router.patch('/patch', async (req, res)=>{
+    const query = {assetName: req.body.assetName};
+    const updateDoc = {
+        $push: {
+            "bidders": req.body.bidder,
+            "prices": req.body.price,
+        }
+    };
+    try{
+        const result = await Bid.findOneAndUpdate(query, updateDoc, {
+            useFindAndModify: false,
+        });
+        res.status(221).json({message: 'bidder added', doc: result});
+    }catch (error){
+        res.status(421).json({message: error.message});
+    }
+});
+
+
+
+
 module.exports = router;
-
-
-// CREATE MORE ROUTES
