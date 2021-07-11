@@ -11,6 +11,10 @@ const assetSchema = mongoose.Schema({
         type: String,
         required: true
     },
+    winner: {
+        type: String,
+        required: true
+    },
     price: {
         type: Number,
         required: true
@@ -26,6 +30,11 @@ const assetSchema = mongoose.Schema({
     closingDate: {
         type: auctionDateSchema,
         required: true
+    },
+    status: {
+        type: Boolean,
+        required: false,
+        default: false
     }
 
 });
