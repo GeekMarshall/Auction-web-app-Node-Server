@@ -17,17 +17,12 @@ var options = {
   }
   app.use(cors(options));
 
-const PORT = process.env.PORT;
-const routes = require('./routes/routes');
-
-app.use(express.json());
-app.use('/api', routes);
-
 
 const mongoose = require('mongoose');
 // REQUEST CONNECTION TO DATABASE
+const uri = process.env.DATABASE_URI;
 mongoose.connect(
-    process.env.DATABASE_URI,
+    uri,
     {
         useNewUrlParser: true,
         useUnifiedTopology: true
@@ -38,6 +33,11 @@ const db = mongoose.connection;
 db.on('error', (error)=>{console.log(error)});
 db.once('open', ()=>{console.log('Connected to Database')});
 
+const PORT = process.env.PORT;
+const routes = require('./routes/routes');
+
+app.use(express.json());
+app.use('/api', routes);
 
 // API BASE POINT
 app.get('/', (req,res)=>{
